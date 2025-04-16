@@ -1,0 +1,32 @@
+# Virtual Environment
+venv/
+*/venv/
+.venv/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# IDE specific files (add if you use VSCode, PyCharm etc.)
+.vscode/
+.idea/
+
+# --- IMPORTANT: Exclude Large Model Files ---
+# Prevents uploading the large model weights directly to Git.
+# Users will need to download separately or train their own.
+*.pth
+
+# Optional: Exclude test videos if they are large or numerous
+# test_videos/
+
+# Temporary files potentially created by app.py
+temp_*.mp4
+temp_*.avi
+temp_*.mov
+temp_*.mkv
