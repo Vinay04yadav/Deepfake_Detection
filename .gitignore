@@ -3,6 +3,10 @@ venv/
 */venv/
 .venv/
 
+# Local Hugging Face checkout and legacy Streamlit config folder
+/deepfake-detector/
+/streamlit/
+
 # Python cache files
 __pycache__/
 *.pyc
