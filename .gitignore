@@ -26,8 +26,8 @@ Thumbs.db
 # Users will need to download separately or train their own.
 *.pth
 
-# Optional: Exclude test videos if they are large or numerous
-# test_videos/
+# DFDC-derived sample videos are kept local and not redistributed from this repo.
+test_videos/
 
 # Temporary files potentially created by app.py
 temp_*.mp4

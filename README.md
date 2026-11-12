@@ -97,6 +97,10 @@ The app opens on `http://localhost:8501`. Use the navigation bar to read the pro
 
 The 216 MB checkpoint is not included in this GitHub repository. The repository ignores `*.pth` files, so cloning the code alone is not enough to run inference. The current app expects `deepfake_detector_best.pth` in the project root. A public checkpoint download location has not been published yet; Hugging Face hosting is still in progress.
 
+## Sample videos
+
+DFDC-derived sample clips are not distributed in this repository. Download videos from the [dataset source on Kaggle](https://www.kaggle.com/datasets/ucimachinelearning/deep-fake-detection-cropped-dataset) under its access and data-use terms.
+
 ## Development notebook
 
 Open [`Deepfake_Detection_Development.ipynb`](Deepfake_Detection_Development.ipynb) in Jupyter or Google Colab. The notebook includes preprocessing, model definition, training, validation metrics, and plots. Running the full notebook requires Kaggle API access and the dataset download.
@@ -112,7 +116,6 @@ app.py                              Streamlit interface and inference code
 Deepfake_Detection_Development.ipynb Training and evaluation notebook
 requirements.txt                    App and notebook dependencies
 .streamlit/config.toml              Streamlit theme and upload settings
-test_videos/                        Small sample clips used during development
 ```
 
 The checkpoint is distributed separately from the source repository.
