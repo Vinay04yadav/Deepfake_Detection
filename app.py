@@ -450,7 +450,7 @@ elif page == "Try yourself":
                         temp_file.write(uploaded_file.getvalue())
                         temp_path = temp_file.name
 
-                    with st.spinner("Loading the detector and analyzing the video…"):
+                    with st.spinner("Downloading the model from Hugging Face if needed, then analyzing the video…"):
                         started = time.perf_counter()
                         model_path = resolve_model_path()
                         model = load_model(model_path, str(device))
