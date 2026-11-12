@@ -122,4 +122,4 @@ The checkpoint is distributed separately from the source repository.
 
 ## License
 
-The source project is licensed under [CC BY-NC-SA 4.0](LICENSE.txt). The dataset has its own terms; review those terms before downloading or redistributing dataset content.
+The original source code in this repository is licensed under the [MIT License](LICENSE.txt). This license does not cover the DFDC-derived dataset, model checkpoint, published paper, or third-party materials; each has separate rights and terms. The checkpoint is not included here, and its redistribution terms have not yet been established.
