@@ -123,9 +123,9 @@ st.markdown(
               --teal:#087f78; --teal-dark:#075e5a; --mist:#e4efeb; --sand:#f4e5d8;
               --coral:#c97853; --white:#fffefa; }
       .stApp { background:var(--paper); color:var(--ink); }
-      [data-testid="stHeader"] { background:rgba(243,245,241,.94); }
+      [data-testid="stHeader"] { display:none; }
       [data-testid="stSidebar"] { display:none; }
-      .block-container { max-width:1220px; padding:1.25rem 2rem 4rem; }
+      .block-container { max-width:1220px; padding:1.5rem 2rem 4rem; }
       h1,h2,h3 { color:var(--ink); font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; letter-spacing:-.03em; }
       h1 { font-weight:600; }
       p,li { color:#405459; }
