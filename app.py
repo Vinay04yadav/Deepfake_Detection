@@ -9,6 +9,7 @@ import streamlit as st
 import torch
 import torch.nn as nn
 import torchvision.models as models
+from huggingface_hub import hf_hub_download
 
 
 st.set_page_config(
@@ -20,6 +21,8 @@ st.set_page_config(
 
 ROOT = Path(__file__).resolve().parent
 MODEL_PATH = ROOT / "deepfake_detector_best.pth"
+MODEL_REPO_ID = "VinayYadav2004/deepfake-detector"
+MODEL_FILENAME = "deepfake_detector_best.pth"
 PAPER_URL = "https://doi.org/10.1109/ICSIT65336.2025.11294356"
 DATASET_URL = "https://www.kaggle.com/datasets/ucimachinelearning/deep-fake-detection-cropped-dataset"
 FRAME_COUNT = 150
@@ -87,6 +90,17 @@ def load_model(model_path, device_name):
     model.to(device_name)
     model.eval()
     return model
+
+
+@st.cache_resource(show_spinner=False)
+def resolve_model_path():
+    """Use a local checkpoint when present; otherwise fetch the public HF file."""
+    if MODEL_PATH.is_file():
+        return str(MODEL_PATH)
+    return hf_hub_download(
+        repo_id=MODEL_REPO_ID,
+        filename=MODEL_FILENAME,
+    )
 
 
 def predict_video(video_path, model, device):
@@ -376,10 +390,10 @@ elif page == "Results":
       <section class="results-panel">
         <h3 class="results-panel-title">Validation confusion matrix</h3>
         <p class="results-panel-copy">Rows show the known label. Columns show the model prediction.</p>
-        <div class="matrix" role="img" aria-label="Confusion matrix. Actual Real: 101 predicted Real and 19 predicted Fake. Actual Fake: 17 predicted Real and 103 predicted Fake.">
+        <div class="matrix" role="img" aria-label="Confusion matrix. Actual Real: 98 predicted Real and 22 predicted Fake. Actual Fake: 18 predicted Real and 102 predicted Fake.">
           <div class="matrix-label"></div><div class="matrix-label">Predicted Real</div><div class="matrix-label">Predicted Fake</div>
-          <div class="matrix-label">Actual Real</div><div class="matrix-cell matrix-hit"><strong>101</strong><span>correct Real</span></div><div class="matrix-cell matrix-error"><strong>19</strong><span>Real marked Fake</span></div>
-          <div class="matrix-label">Actual Fake</div><div class="matrix-cell matrix-error"><strong>17</strong><span>Fake marked Real</span></div><div class="matrix-cell matrix-hit"><strong>103</strong><span>correct Fake</span></div>
+          <div class="matrix-label">Actual Real</div><div class="matrix-cell matrix-hit"><strong>98</strong><span>correct Real</span></div><div class="matrix-cell matrix-error"><strong>22</strong><span>Real marked Fake</span></div>
+          <div class="matrix-label">Actual Fake</div><div class="matrix-cell matrix-error"><strong>18</strong><span>Fake marked Real</span></div><div class="matrix-cell matrix-hit"><strong>102</strong><span>correct Fake</span></div>
         </div>
         <p class="results-panel-copy">Validation set: 120 Real clips and 120 Fake clips.</p>
       </section>
@@ -387,9 +401,9 @@ elif page == "Results":
         <h3 class="results-panel-title">Reading these numbers</h3>
         <p class="results-panel-copy">A class-wise view of the same 240-video validation split.</p>
         <ul class="results-summary">
-          <li><b>204 of 240 videos</b> were classified correctly.</li>
-          <li><b>103 of 120 fake videos</b> were detected as Fake.</li>
-          <li><b>19 of 120 real videos</b> were incorrectly classified as Fake.</li>
+          <li><b>200 of 240 videos</b> were classified correctly.</li>
+          <li><b>102 of 120 fake videos</b> were detected as Fake.</li>
+          <li><b>22 of 120 real videos</b> were incorrectly classified as Fake.</li>
           <li>Fake-class F1-score: <b>83.61%.</b></li>
         </ul>
         <div class="note">These results are from a held-out split of the same DFDC-derived dataset used for training. The model has not been evaluated on independent datasets or recent deepfake generators, so this score does not establish current real-world performance.</div>
@@ -407,8 +421,10 @@ elif page == "Try yourself":
     st.write("")
     st.markdown('<div class="note"><b>Important limitation</b><br><br>The model was trained and validated on a balanced subset of DFDC-derived face-cropped videos. It has not been evaluated on independent datasets or recent deepfake generators, so it may miss unfamiliar manipulations. Treat its score as an experimental signal, not proof that a video is real or fake.</div>', unsafe_allow_html=True)
     st.write("")
-    if not MODEL_PATH.is_file():
-        st.error(f"Model checkpoint not found at {MODEL_PATH.name}. Add the checkpoint next to app.py to enable inference.")
+    if MODEL_PATH.is_file():
+        st.caption(f"Local checkpoint found: {MODEL_FILENAME}")
+    else:
+        st.caption("The model checkpoint will be downloaded from Hugging Face the first time you analyze a video.")
     upload_col, visual_col = st.columns([1.05, .95], gap="large")
     with upload_col:
         st.markdown("#### Select a clip")
@@ -416,7 +432,6 @@ elif page == "Try yourself":
             "Choose a video",
             type=["mp4", "avi", "mov", "mkv"],
             help="Supported formats: MP4, AVI, MOV, and MKV.",
-            disabled=not MODEL_PATH.is_file(),
             key="video_upload",
         )
         st.caption(f"Need a test clip? Get a Real or Fake video from the [DFDC-derived dataset on Kaggle]({DATASET_URL}). Sign in and accept its data-use terms if prompted.")
@@ -427,7 +442,7 @@ elif page == "Try yourself":
             st.video(uploaded_file.getvalue())
             st.caption(f"{uploaded_file.name}: {uploaded_file.size / (1024 * 1024):.1f} MB")
 
-            if st.button("Analyze video", type="primary", disabled=not MODEL_PATH.is_file(), use_container_width=True):
+            if st.button("Analyze video", type="primary", use_container_width=True):
                 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
                 temp_path = None
                 try:
@@ -437,7 +452,8 @@ elif page == "Try yourself":
 
                     with st.spinner("Loading the detector and analyzing the video…"):
                         started = time.perf_counter()
-                        model = load_model(str(MODEL_PATH), str(device))
+                        model_path = resolve_model_path()
+                        model = load_model(model_path, str(device))
                         label, real_score, fake_score, sample_frames = predict_video(temp_path, model, device)
                         elapsed = time.perf_counter() - started
                     st.session_state.analysis_filename = uploaded_file.name

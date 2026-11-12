@@ -57,8 +57,8 @@ Confusion matrix counts, with rows representing actual labels and columns repres
 
 | Actual | Predicted Real | Predicted Fake |
 |---|---:|---:|
-| Real | 101 | 19 |
-| Fake | 17 | 103 |
+| Real | 98 | 22 |
+| Fake | 18 | 102 |
 
 These results describe one stratified split of a balanced subset from a single dataset source. They do not establish performance on other datasets, manipulation methods, or in-the-wild videos. The validation split was used both to select the checkpoint and report these metrics.
 
@@ -85,7 +85,7 @@ On Windows, activate the environment with:
 .venv\Scripts\activate
 ```
 
-Place `deepfake_detector_best.pth` in the project root, beside `app.py`, then start the app:
+If you have the checkpoint locally, place `deepfake_detector_best.pth` beside `app.py`. Otherwise, the app downloads it from the public [Hugging Face model repository](https://huggingface.co/VinayYadav2004/deepfake-detector) the first time you analyze a clip. Start the app with:
 
 ```bash
 python -m streamlit run app.py
@@ -95,7 +95,7 @@ The app opens on `http://localhost:8501`. Use the navigation bar to read the pro
 
 ## Model checkpoint status
 
-The 216 MB checkpoint is not included in this GitHub repository. The repository ignores `*.pth` files, so cloning the code alone is not enough to run inference. The current app expects `deepfake_detector_best.pth` in the project root. A public checkpoint download location has not been published yet; Hugging Face hosting is still in progress.
+The 216 MB checkpoint is excluded from this GitHub repository. The app uses a local copy when available; otherwise it downloads `deepfake_detector_best.pth` from the [Hugging Face model repository](https://huggingface.co/VinayYadav2004/deepfake-detector). Upload the checkpoint to that model repository to enable this download path.
 
 ## Sample videos
 

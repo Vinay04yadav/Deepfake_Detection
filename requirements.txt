@@ -3,6 +3,7 @@ typing_extensions>=4.10,<5.0
 six>=1.16.0
 torch==2.2.1
 torchvision==0.17.1
+huggingface_hub>=0.26,<2
 numpy==1.26.0
 opencv-python-headless==4.9.0.80
 scikit-learn==1.4.1.post1

@@ -1,38 +1,57 @@
 ---
+license: mit
 pipeline_tag: video-classification
-library_name: pytorch
+metrics:
+  - accuracy
+  - roc_auc
+  - precision
+  - recall
+  - f1
 tags:
   - deepfake-detection
-  - video-classification
-  - resnext
+  - resnext-50
   - lstm
+  - dfdc
+  - pytorch
 ---
 
-# Deepfake Video Detector (ResNeXt-50 + LSTM)
+# Deepfake Video Detector: ResNeXt-50 + LSTM
 
-## Status
+## Model summary
 
-This is a research prototype associated with the paper “Deepfake Video Detection Using a Combined CNN-LSTM Approach.” The model checkpoint is not currently published. Its license and redistribution rights need to be confirmed before the weights are released.
+A binary video classifier that combines frame-level visual features from a fine-tuned ResNeXt-50 with temporal modeling from a one-layer LSTM. The checkpoint is a PyTorch state dictionary named `deepfake_detector_best.pth`.
 
-## Model details
+**Task:** classify an input clip as `Real` or `Fake`.
 
-- **Task:** Binary video classification (Real or Fake)
-- **Architecture:** ResNeXt-50 frame feature extractor followed by an LSTM sequence classifier
-- **Framework:** PyTorch
-- **Input:** A sequence of up to 150 frames, resized to 112 × 112 pixels
-- **Output:** Scores for the Real and Fake classes
+## Architecture and inputs
 
-The current application samples frames from the beginning of the uploaded clip. It expects face-cropped input like the training data and does not detect or crop faces in arbitrary footage.
+- ResNeXt-50 32×4d initialized with ImageNet-1K V2 pretrained weights; its feature extractor is fine-tuned.
+- The CNN produces one 2,048-dimensional feature vector per frame.
+- A one-layer LSTM with hidden size 2,048 processes the ordered frame features.
+- Temporal average pooling, dropout (0.4), LeakyReLU, and a two-class linear layer produce the Real and Fake logits.
+- Input tensor shape: `(batch, 150, 3, 112, 112)`.
+- Frames are converted from BGR to RGB, resized to 112×112, and scaled to `[0, 1]`.
+
+The demo reads up to the first 150 decoded frames. For clips shorter than 150 frames, it repeats the final frame to fill the sequence. The training videos contain cropped faces; the demo does not detect or crop faces from arbitrary footage. The displayed softmax scores are relative model scores, not calibrated probabilities.
 
 ## Training data
 
-The notebook uses a 1,200-video subset (600 Real and 600 Fake) of the Kaggle DeepFake Detection Cropped Dataset, which is derived from DFDC. The subset was split into 960 training videos and 240 validation videos (120 per class).
+The model was trained on a randomly selected, balanced subset of 1,200 clips (600 Real and 600 Fake) from the [DeepFake Detection Cropped Dataset on Kaggle](https://www.kaggle.com/datasets/ucimachinelearning/deep-fake-detection-cropped-dataset), a DFDC-derived dataset. The notebook uses random seed 42 and a stratified 80/20 split:
 
-The dataset is subject to its own terms. This model card does not grant rights to the source videos or establish that the trained checkpoint may be redistributed. No dataset videos are included in this repository.
+| Split | Real | Fake | Total |
+| --- | ---: | ---: | ---: |
+| Training | 480 | 480 | 960 |
+| Validation | 120 | 120 | 240 |
+
+No source videos are included with the checkpoint.
+
+## Training procedure
+
+Training ran for 10 epochs in Google Colab on a Tesla T4 GPU, using cross-entropy loss and Adam with learning rate `1e-5`, weight decay `1e-3`, and batch size 2. The checkpoint with the highest validation accuracy was retained.
 
 ## Evaluation
 
-Reported results on the notebook's stratified 240-video validation split:
+Reported results on the 240-video validation split:
 
 | Metric | Result |
 | --- | ---: |
@@ -42,14 +61,25 @@ Reported results on the notebook's stratified 240-video validation split:
 | Fake recall | 85.00% |
 | Fake F1-score | 83.61% |
 
-This is one validation split from one dataset source. The same validation split was used to select the best checkpoint and report these metrics, so these figures are not an independent test estimate.
+Confusion matrix (rows are actual labels; columns are predictions):
+
+| Actual | Predicted Real | Predicted Fake |
+| --- | ---: | ---: |
+| Real | 98 | 22 |
+| Fake | 18 | 102 |
+
+The validation split was used to select the checkpoint and report these metrics. Treat them as results for this split, not as an independent estimate of performance on other data.
 
 ## Intended use and limitations
 
-Use this model for research, education, and demonstration of the documented CNN-LSTM workflow. Do not treat its predictions as proof that a video is authentic or manipulated, or use them as the sole basis for consequential decisions.
+This model is intended for research, education, and demonstration. It has been evaluated on one split of one DFDC-derived dataset. Its performance on other datasets, newer manipulation methods, uncropped footage, or real-world videos has not been established. Video compression, lighting, pose, and image quality may affect predictions. Do not use a prediction as proof of authenticity or manipulation.
 
-The model was trained on a subset derived from DFDC. It is not established to work on recent deepfake generation methods, other datasets, un-cropped footage, or real-world videos. Distribution shifts, compression, lighting, pose, and video quality can affect its output. A “Real” prediction does not certify authenticity, and a “Fake” prediction does not prove manipulation.
+## Reproduce the demo
 
-## License
+The [project repository](https://github.com/Vinay04yadav/Deepfake_Detection) contains the Streamlit app and the model definition. Download `deepfake_detector_best.pth` from this model repository, place it in the project root, install `requirements.txt`, and run:
 
-No license is granted for the model weights at this time. The source code license, dataset terms, and paper rights are separate. Add a Hugging Face `license` metadata field only after confirming the rights that apply to the checkpoint.
+`streamlit run app.py`
+
+## Paper
+
+“Deepfake Video Detection Using a Combined CNN-LSTM Approach,” 2025 International Conference on Sustainability, Innovation and Technology. [https://doi.org/10.1109/ICSIT65336.2025.11294356](https://doi.org/10.1109/ICSIT65336.2025.11294356)
