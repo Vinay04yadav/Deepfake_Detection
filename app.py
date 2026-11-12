@@ -13,7 +13,7 @@ import torchvision.models as models
 
 st.set_page_config(
     page_title="Deepfake Video Detection",
-    page_icon="◉",
+    page_icon="🎭",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
@@ -21,6 +21,7 @@ st.set_page_config(
 ROOT = Path(__file__).resolve().parent
 MODEL_PATH = ROOT / "deepfake_detector_best.pth"
 PAPER_URL = "https://doi.org/10.1109/ICSIT65336.2025.11294356"
+DATASET_URL = "https://www.kaggle.com/datasets/ucimachinelearning/deep-fake-detection-cropped-dataset"
 FRAME_COUNT = 150
 IMG_SIZE = (112, 112)
 PAGES = ["Home", "Methodology", "Results", "Try yourself"]
@@ -168,12 +169,20 @@ st.markdown(
       .matrix-cell span { color:#354e53; font-size:.8rem; }
       .matrix-hit { background:linear-gradient(145deg,#d6e9e1,#e6f0eb); border:1px solid #c3dcd1; }
       .matrix-error { background:linear-gradient(145deg,#f4e6d9,#f8eee6); border:1px solid #ead7c6; }
+      .results-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.1rem; align-items:stretch; margin-top:1.2rem; }
+      .results-panel { min-width:0; display:flex; flex-direction:column; padding:1.25rem; border:1px solid var(--line); border-radius:12px; background:var(--white); }
+      .results-panel-title { margin:0 0 .55rem; color:var(--ink); font-size:clamp(1.35rem,2.1vw,1.8rem); font-weight:600; line-height:1.2; letter-spacing:-.025em; }
+      .results-panel-copy { min-height:2.7rem; margin:0; color:#89999a; font-size:.9rem; line-height:1.5; }
+      .results-panel .matrix { margin:.55rem 0 .75rem; }
+      .results-summary { margin:.55rem 0 1rem; padding-left:1.2rem; color:#405459; line-height:1.75; }
+      .results-summary li { padding-left:.15rem; margin:.35rem 0; }
+      .results-panel .note { margin-top:auto; }
       .result-band { padding:1.1rem 1.3rem; border:1px solid #d6e2dc; border-radius:10px; background:#e8f0ec; line-height:1.6; }
       .demo-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:stretch; }
       .demo-visual { position:relative; min-height:21rem; overflow:hidden; padding:1.5rem; border:1px solid #c9d9d3; border-radius:14px; background:radial-gradient(ellipse at 80% 15%,rgba(201,120,83,.24),transparent 35%),radial-gradient(ellipse at 20% 90%,rgba(8,127,120,.2),transparent 38%),#e7efeb; background-size:140% 140%; animation:drift 15s ease-in-out infinite alternate; }
       @keyframes drift { from { background-position:0% 20%; } to { background-position:100% 80%; } }
-      .demo-visual h3 { margin:.35rem 0 .7rem; font-size:1.5rem; }
-      .demo-visual p { max-width:40ch; color:#425b5e; line-height:1.6; }
+      .demo-visual h3 { margin:.35rem 0 .7rem; font-size:clamp(1.15rem,1.8vw,1.4rem); line-height:1.2; }
+      .demo-visual p { max-width:none; color:#425b5e; line-height:1.55; }
       .demo-visual .flow-node { background:rgba(255,254,250,.72); }
       .demo-meta { display:grid; grid-template-columns:1fr 1fr; gap:.6rem; margin-top:1.2rem; }
       .demo-meta div { padding:.8rem; border:1px solid rgba(130,159,149,.35); border-radius:8px; background:rgba(255,254,250,.55); }
@@ -188,6 +197,8 @@ st.markdown(
         .architecture-flow { grid-template-columns:1fr; }
         .architecture-arrow { justify-content:center; transform:rotate(90deg); }
         .demo-grid { grid-template-columns:1fr; }
+        .results-grid { grid-template-columns:1fr; }
+        .results-panel-copy { min-height:0; }
       }
     </style>
     """,
@@ -272,7 +283,7 @@ if page == "Home":
         st.button("Try the detector", on_click=go_to, args=("Try yourself",), type="primary", key="home_try")
 
 elif page == "Methodology":
-    section_heading("How each video becomes a prediction", "The pipeline keeps the order of a clip intact: a CNN describes each frame, then an LSTM reads how those descriptions change over time.")
+    section_heading("How each video becomes a prediction", "Follow the notebook from face-cropped source clips to a video-level score, including the practical choices that shape this experiment.")
     st.write("")
     d1, d2, d3 = st.columns(3)
     for col, value, label in [
@@ -302,31 +313,47 @@ elif page == "Methodology":
     </div>
     """, unsafe_allow_html=True)
 
-    st.subheader("Data preparation")
-    prep1, prep2, prep3 = st.columns(3)
-    prep_steps = [
-        (prep1, "Frame extraction", "OpenCV reads consecutive frames from the beginning of each face-cropped clip. A clip with fewer than 150 frames is padded by repeating its last frame."),
-        (prep2, "Image conversion", "Every frame is resized to 112 × 112 pixels and converted from OpenCV’s BGR order to RGB."),
-        (prep3, "Balanced split", "The notebook samples 600 Real and 600 Fake videos, then uses a stratified split: 480 per class for training and 120 per class for validation."),
-    ]
-    for col, title, description in prep_steps:
-        with col:
-            st.markdown(f'<div class="pipeline-step"><span class="step-number">{title}</span><small>{description}</small></div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    st.subheader("1 · Build a consistent video dataset")
+    data_col, processing_col = st.columns(2, gap="large")
+    with data_col:
+        st.markdown("""
+        The notebook downloads the Kaggle **DeepFake Detection Cropped Dataset**, a DFDC-derived collection of face-cropped clips. It reports 1,727 Real and 1,566 Fake videos in the downloaded set. The experiment samples 600 clips from each class with random seed `42`, then uses a stratified 80/20 split. That gives 480 Real and 480 Fake training clips, plus 120 of each for validation.
+
+        Keeping the classes balanced makes the reported accuracy easier to interpret alongside class-wise precision and recall. The trade-off is that 2,093 downloaded clips are not used in this run, and a balanced subset cannot show how the model behaves under real-world class prevalence.
+        """)
+    with processing_col:
+        st.markdown("""
+        OpenCV decodes frames in order from the beginning of each clip. Each frame is resized to **112 × 112**, converted from OpenCV’s BGR channel order to RGB, and stored in a fixed sequence of **150 frames**. Processed sequences are saved as `.npy` files; the notebook skips files already processed so a rerun does not decode them again.
+
+        A clip shorter than 150 readable frames is padded by repeating its last frame. A longer clip is truncated after frame 150. Failed or unreadable clips are skipped. This fixed shape lets the DataLoader form batches, but it also means later events in long videos are outside the model’s view and repeated frames can dominate the end of a short sequence.
+        """)
 
     st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
-    st.subheader("Model training and evaluation")
-    train_col, eval_col = st.columns([1.05, .95])
+    st.subheader("2 · Turn each frame into a feature sequence")
+    st.markdown("""
+    The dataset loader scales pixel values to `[0, 1]` and changes each stored frame from height–width–channel order to PyTorch’s channel–height–width order. A batch therefore has shape **`(B, 150, 3, 112, 112)`**. The model temporarily folds the batch and frame axes together, so ResNeXt processes the frames as `B × 150` images; its original classifier is removed and each frame becomes a **2,048-value feature vector**.
+
+    The feature vectors are reshaped back to **`(B, 150, 2048)`** and passed in chronological order to a one-layer LSTM with hidden size 2,048. The LSTM output at every time step is averaged across the sequence, then passed through dropout (`0.4`), LeakyReLU, and a two-unit linear classifier. The two output logits represent Real and Fake; softmax is applied by the demo to display relative class scores.
+    """)
+    st.markdown('<div class="note"><b>Why combine a CNN and an LSTM?</b><br><br>ResNeXt summarizes spatial appearance within an individual frame. The LSTM receives those frame descriptions in order and can model how the representation changes through the clip. The final temporal average converts the sequence of LSTM outputs into one fixed-size video representation for classification.</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="section-rule"></div>', unsafe_allow_html=True)
+    st.subheader("3 · Train and select the checkpoint")
+    train_col, eval_col = st.columns([1.05, .95], gap="large")
     with train_col:
         st.markdown("""
-        The notebook fine-tunes an ImageNet-pretrained ResNeXt-50 with a one-layer LSTM. Training uses **cross-entropy loss**, the **Adam optimizer**, a learning rate of **1e-5**, and weight decay of **1e-3**. The best checkpoint is selected by validation accuracy over 10 epochs.
+        The notebook initializes ResNeXt-50 with **ImageNet-1K V2 pretrained weights** and fine-tunes its feature extractor together with the LSTM and classifier. It uses cross-entropy loss and Adam (`learning rate = 1e-5`, `weight decay = 1e-3`) for **10 epochs**. Training batches contain two videos; the notebook comments that this small batch is to fit the sequence workload in GPU memory. Training batches are shuffled, while validation batches are not.
 
-        The class head averages the LSTM outputs across time, then applies dropout, LeakyReLU, and a linear layer for the Real and Fake scores.
+        After each epoch, the notebook measures validation loss and accuracy. Whenever validation accuracy improves, it saves a copy of the model weights. The final reported model is therefore the best checkpoint observed on this validation split, rather than necessarily the weights from the last epoch. Training was run in Colab on a Tesla T4 GPU.
         """)
     with eval_col:
         st.markdown("""
-        <div class="note"><b>What this evaluation covers</b><br><br>
-        Results come from one stratified 80/20 split of 1,200 videos. The validation set contains 120 Real and 120 Fake clips. The demo analyzes the first 150 frames and does not detect or crop faces in arbitrary footage.<br><br>
-        Treat the score as a research result on this dataset, not as a guarantee for other sources or manipulations.
+        <div class="note"><b>Practical constraints and what they mean</b><br><br>
+        <b>Sequence cost:</b> a 150-frame clip requires many CNN feature passes. The notebook uses 112 × 112 frames and batch size two; the latter is explicitly noted as a GPU-memory choice.<br><br>
+        <b>Input consistency:</b> fixed-length sequences make batching straightforward. Repeating the final frame handles short clips, while truncation bounds work for long clips; neither preserves the full timing or duration of every video.<br><br>
+        <b>Color channels:</b> OpenCV returns BGR images, so the pipeline converts them to RGB before inference to keep channel ordering consistent across training and the app.<br><br>
+        <b>Scope:</b> the dataset already contains cropped faces. The demo does not locate or crop faces in arbitrary uploaded videos, and validation on one split does not establish generalization to other datasets or manipulation methods.
         </div>
         """, unsafe_allow_html=True)
 
@@ -344,35 +371,41 @@ elif page == "Results":
         with col:
             st.markdown(f'<div class="stat"><strong>{value}</strong><span>{label}</span></div>', unsafe_allow_html=True)
 
-    st.write("")
-    matrix_col, detail_col = st.columns([.9, 1.1])
-    with matrix_col:
-        st.subheader("Validation confusion matrix")
-        st.caption("Rows show the known label. Columns show the model prediction.")
-        st.markdown("""
+    st.markdown("""
+    <div class="results-grid">
+      <section class="results-panel">
+        <h3 class="results-panel-title">Validation confusion matrix</h3>
+        <p class="results-panel-copy">Rows show the known label. Columns show the model prediction.</p>
         <div class="matrix" role="img" aria-label="Confusion matrix. Actual Real: 101 predicted Real and 19 predicted Fake. Actual Fake: 17 predicted Real and 103 predicted Fake.">
           <div class="matrix-label"></div><div class="matrix-label">Predicted Real</div><div class="matrix-label">Predicted Fake</div>
           <div class="matrix-label">Actual Real</div><div class="matrix-cell matrix-hit"><strong>101</strong><span>correct Real</span></div><div class="matrix-cell matrix-error"><strong>19</strong><span>Real marked Fake</span></div>
           <div class="matrix-label">Actual Fake</div><div class="matrix-cell matrix-error"><strong>17</strong><span>Fake marked Real</span></div><div class="matrix-cell matrix-hit"><strong>103</strong><span>correct Fake</span></div>
         </div>
-        """, unsafe_allow_html=True)
-        st.caption("120 Real clips and 120 Fake clips in the validation split.")
-    with detail_col:
-        st.subheader("Reading these numbers")
-        st.markdown("""
-        - **204 of 240 videos** were classified correctly.
-        - **103 of 120 fake videos** were detected as Fake.
-        - **19 of 120 real videos** were incorrectly classified as Fake.
-        - Fake-class F1-score: **83.61%**.
-        """)
-        st.markdown('<div class="note">These are validation-set results from one split of a balanced subset. They do not establish performance on every deepfake source, editing method, or real-world video.</div>', unsafe_allow_html=True)
+        <p class="results-panel-copy">Validation set: 120 Real clips and 120 Fake clips.</p>
+      </section>
+      <section class="results-panel">
+        <h3 class="results-panel-title">Reading these numbers</h3>
+        <p class="results-panel-copy">A class-wise view of the same 240-video validation split.</p>
+        <ul class="results-summary">
+          <li><b>204 of 240 videos</b> were classified correctly.</li>
+          <li><b>103 of 120 fake videos</b> were detected as Fake.</li>
+          <li><b>19 of 120 real videos</b> were incorrectly classified as Fake.</li>
+          <li>Fake-class F1-score: <b>83.61%.</b></li>
+        </ul>
+        <div class="note">These results are from a held-out split of the same DFDC-derived dataset used for training. The model has not been evaluated on independent datasets or recent deepfake generators, so this score does not establish current real-world performance.</div>
+      </section>
+    </div>
+    """, unsafe_allow_html=True)
 
     st.write("")
     st.markdown('<div class="result-band"><b>Publication</b><br>“Deepfake Video Detection Using a Combined CNN-LSTM Approach”<br>2025 International Conference on Sustainability, Innovation and Technology</div>', unsafe_allow_html=True)
+    st.markdown('<div class="cta-gap"></div>', unsafe_allow_html=True)
     st.link_button("Read the paper on IEEE Xplore", PAPER_URL)
 
 elif page == "Try yourself":
     section_heading("Upload a video clip", "The app analyzes up to 150 frames from the beginning of the video. Processing time depends on the clip and available hardware.")
+    st.write("")
+    st.markdown('<div class="note"><b>Important limitation</b><br><br>The model was trained and validated on a balanced subset of DFDC-derived face-cropped videos. It has not been evaluated on independent datasets or recent deepfake generators, so it may miss unfamiliar manipulations. Treat its score as an experimental signal, not proof that a video is real or fake.</div>', unsafe_allow_html=True)
     st.write("")
     if not MODEL_PATH.is_file():
         st.error(f"Model checkpoint not found at {MODEL_PATH.name}. Add the checkpoint next to app.py to enable inference.")
@@ -386,6 +419,7 @@ elif page == "Try yourself":
             disabled=not MODEL_PATH.is_file(),
             key="video_upload",
         )
+        st.caption(f"Need a test clip? Get a Real or Fake video from the [DFDC-derived dataset on Kaggle]({DATASET_URL}). Sign in and accept its data-use terms if prompted.")
         if uploaded_file is not None:
             if st.session_state.get("analysis_filename") != uploaded_file.name:
                 st.session_state.analysis_result = None
@@ -425,18 +459,18 @@ elif page == "Try yourself":
     with visual_col:
         st.markdown("""
         <div class="demo-visual">
-          <span class="step-number">Inside the analysis window</span>
-          <h3>One short segment, read in sequence</h3>
-          <p>The model compares frame-level visual features across time. It does not scan every frame in a long video.</p>
+          <span class="step-number">How video analysis works</span>
+          <h3>Checks the first 150 frames</h3>
+          <p>The app summarizes each frame, compares them in order, and returns Real and Fake scores. Frames after the first 150 are skipped.</p>
           <div class="filmstrip"><div class="film-frame"></div><div class="film-frame"></div><div class="film-frame"></div><div class="film-frame"></div><div class="film-frame"></div></div>
-          <div class="flow-row"><div class="flow-node">Frame features</div><div class="flow-arrow">→</div><div class="flow-node">LSTM sequence</div><div class="flow-arrow">→</div><div class="flow-node">Two scores</div></div>
+          <div class="flow-row"><div class="flow-node">Frame details</div><div class="flow-arrow">→</div><div class="flow-node">Compare over time</div><div class="flow-arrow">→</div><div class="flow-node">Real / Fake scores</div></div>
           <div class="demo-meta">
-            <div><b>150</b><span>frames from the clip start</span></div>
-            <div><b>112 × 112</b><span>pixels per frame</span></div>
+            <div><b>Up to 150</b><span>opening frames checked</span></div>
+            <div><b>112 × 112</b><span>pixels per resized frame</span></div>
           </div>
         </div>
         """, unsafe_allow_html=True)
-        st.markdown('<div class="note" style="margin-top:1rem">Uploads are sent to the app server for inference. Temporary processing files are removed after analysis. Avoid uploading private footage.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="note" style="margin-top:1rem">The video is received by the computer running this app. When you click Analyze, the app creates a temporary copy for processing and deletes that copy when analysis finishes. The upload stays available to the current Streamlit session for preview. If the app is hosted online, the host computer processes the video. Avoid uploading private footage.</div>', unsafe_allow_html=True)
 
     if uploaded_file is not None and st.session_state.get("analysis_error"):
         st.error(f"Analysis failed: {st.session_state.analysis_error}")
